@@ -1,12 +1,18 @@
+mod parsing;
+
 use leptos::{config::get_configuration, error::Error};
 use leptos_wasi::{
     handler::HandlerError,
     prelude::{Executor, IncomingRequest, ResponseOutparam, WasiExecutor},
 };
-use opentelemetry_proto::tonic::collector::{
-    logs::v1::ExportLogsServiceRequest, metrics::v1::ExportMetricsServiceRequest,
-    trace::v1::ExportTraceServiceRequest,
+use opentelemetry_proto::tonic::{
+    collector::{
+        logs::v1::ExportLogsServiceRequest, metrics::v1::ExportMetricsServiceRequest,
+        trace::v1::ExportTraceServiceRequest,
+    },
+    common::v1::AnyValue,
 };
+use parsing::{parse_key_values_to_sorted_string, parse_value_to_str};
 use prost::Message;
 use wasi::{exports::http::incoming_handler::Guest, http::types::OutgoingResponse};
 use wasi::{
@@ -88,23 +94,44 @@ fn handle_otel_request(
             }
             "/v1/logs" => {
                 let parsed = ExportLogsServiceRequest::decode(body_bytes.as_slice())?;
-                println!("TODO -- parse logs: {parsed:?}!");
 
-                // let conn = spin_sdk::sqlite::Connection::open("logs")?;
-                // for resource_log in parsed.resource_logs {
-                //     for scope_log in resource_log.scope_logs {
-                //         for log in scope_log.log_records {
-                //             let res = conn.execute(
-                //                 "INSERT INTO logs (resource, scope, log) VALUES ($1, $2, $3)",
-                //                 &[
-                //                     // resource_log.resource.map(|resource| resource.attributes),
-                //                     // scope_log.scope.map(|scope| scope.name),
-                //                     // log.body,
-                //                 ],
-                //             )?;
-                //         }
-                //     }
-                // }
+                let conn = spin_sdk::sqlite::Connection::open_default()?;
+                for resource_log in parsed.resource_logs {
+                    let resource_labels = resource_log
+                        .resource
+                        .map(|res| res.attributes)
+                        .unwrap_or_default();
+                    let resource_labels_str = parse_key_values_to_sorted_string(resource_labels);
+
+                    for scope_log in resource_log.scope_logs {
+                        let scope_labels = scope_log
+                            .scope
+                            .map(|scope| scope.attributes)
+                            .unwrap_or_default();
+                        let scope_labels_str = parse_key_values_to_sorted_string(scope_labels);
+
+                        for log in scope_log.log_records {
+                            let log_labels_str = parse_key_values_to_sorted_string(log.attributes);
+                            conn.execute(
+                                "INSERT INTO logs (resource_labels, scope_labels, log_labels, log) VALUES (?, ?, ?, ?)",
+                                &[
+                                    spin_sdk::sqlite::Value::Blob(resource_labels_str.clone().into_bytes()),
+                                    spin_sdk::sqlite::Value::Blob(
+                                        scope_labels_str.clone().into_bytes(),
+                                    ),
+                                    spin_sdk::sqlite::Value::Blob(
+                                        log_labels_str.into_bytes(),
+                                    ),
+                                    spin_sdk::sqlite::Value::Text(match log.body {
+                                        Some(AnyValue { value: Some(val) }) => 
+                                             parse_value_to_str(val),
+                                        _ => "".to_string(),
+                                    })
+                                ],
+                            )?;
+                        }
+                    }
+                }
             }
             _ => panic!("TODO: Handle exception cases"),
         },

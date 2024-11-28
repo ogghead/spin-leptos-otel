@@ -11,12 +11,13 @@ route = "/..."
 component = "spin-leptos-otel"
 
 [component.spin-leptos-otel]
-source = "target/wasm32-wasip1/release/spin_otel.wasm"
+source = "target/wasm32-wasip1/release/spin_leptos_otel.wasm"
 allowed_outbound_hosts = []
 key_value_stores = ["default"]
+sqlite_databases = ["default"]
 
 [component.spin-leptos-otel.build]
-command = "cargo leptos build --release && LEPTOS_OUTPUT_NAME=spin_otel cargo build --lib --target wasm32-wasip1 --release --no-default-features --features ssr"
+command = "cargo leptos build --release && LEPTOS_OUTPUT_NAME=spin_leptos_otel cargo build --lib --target wasm32-wasip1 --release --no-default-features --features ssr"
 watch = ["src/**/*.rs", "Cargo.toml"]
 
 [[trigger.http]]

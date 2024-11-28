@@ -14,4 +14,4 @@ Prequisites:
 
 Build and run:
 
-- `spin up --listen 127.0.0.1:4318 --build` to build and run the server. It will print the application URL.
+- `spin up --listen 127.0.0.1:4318 --build --sqlite @migrations.sql` to build and run the server. It will print the application URL.

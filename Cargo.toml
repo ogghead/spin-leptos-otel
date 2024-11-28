@@ -43,7 +43,7 @@ ssr = [
 
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name   
-output-name = "spin_otel"
+output-name = "spin_leptos_otel"
 style-file = "style/main.scss"
 bin-features = ["ssr"]
 bin-default-features = false
